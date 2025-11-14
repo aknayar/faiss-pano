@@ -124,7 +124,7 @@ struct IVFFlatScannerPanorama : InvertedListScanner {
                                     active_indices,
                                     exact_distances,
                                     simi[0],
-                                    local_stats);
+                                    local_stats, nullptr);
 
             // Add batch survivors to heap.
             for (size_t i = 0; i < num_active; i++) {
@@ -182,7 +182,7 @@ struct IVFFlatScannerPanorama : InvertedListScanner {
                                     active_indices,
                                     exact_distances,
                                     radius,
-                                    local_stats);
+                                    local_stats, nullptr);
 
             // Add batch survivors to range result.
             for (size_t i = 0; i < num_active; i++) {

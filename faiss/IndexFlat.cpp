@@ -588,7 +588,8 @@ inline void flat_pano_search_core(
                                         active_indices,
                                         exact_distances,
                                         threshold,
-                                        local_stats);
+                                        local_stats,
+                                        &index.level_dist_map);
 
                 for (size_t j = 0; j < num_active; j++) {
                     res.add_result(
@@ -614,6 +615,9 @@ void IndexFlatPanorama::add(idx_t n, const float* x) {
     ntotal += n;
     size_t num_batches = (ntotal + batch_size - 1) / batch_size;
 
+    raw.resize(ntotal * d);
+    memcpy(raw.data(), x, ntotal * d * sizeof(float));
+
     codes.resize(num_batches * batch_size * code_size);
     cum_sums.resize(num_batches * batch_size * (n_levels + 1));
 
@@ -632,10 +636,67 @@ void IndexFlatPanorama::search(
     FAISS_THROW_IF_NOT(k > 0);
     FAISS_THROW_IF_NOT(batch_size >= k);
 
+    // Just 1 query for this
+    FAISS_THROW_IF_NOT(n == 1);
+
+    // Populate exact_dist_map
+    for (idx_t i = 0; i < ntotal; i++) {
+        exact_dist_map[i] = fvec_L2sqr(x, raw.data() + i * d, d);
+    }
+
+    printf("step 1 done\n");
+    fflush(stdout);
+
     HeapBlockResultHandler<CMax<float, int64_t>, false> handler(
             size_t(n), distances, labels, size_t(k), nullptr);
 
     flat_pano_search_core<false>(*this, handler, n, x, 0.0f, params);
+
+    printf("step 2 done\n");
+    fflush(stdout);
+
+    std::map<size_t, std::map<idx_t, float>> ratio_map;
+
+    for (const auto& [level, dist_map] : level_dist_map) {
+        for (const auto& [idx, dist] : dist_map) {
+            ratio_map[level][idx] = dist / exact_dist_map[idx];
+        }
+    }
+
+    printf("step 3 done\n");
+    fflush(stdout);
+
+    std::map<size_t, float> avg_map, std_map;
+    for (const auto& [level, dist_map] : ratio_map) {
+        float avg = 0;
+        float std = 0;
+        for (const auto& [idx, ratio] : dist_map) {
+            avg += ratio;
+        }
+        avg /= dist_map.size();
+        avg_map[level] = avg;
+
+        for (const auto& [idx, ratio] : dist_map) {
+            std += (ratio - avg) * (ratio - avg);
+        }
+        std /= dist_map.size();
+        // right now it's variance
+        std_map[level] = std;
+    }
+
+    // Print the avg and std for each level
+    for (const auto& [level, avg] : avg_map) {
+        std::cout << "Level " << level << " avg: " << avg
+                  << " std: " << std_map[level] << std::endl;
+    }
+
+    // for the first point, print its exact distnace and all the level distances
+    std::cout << "Exact distance: " << exact_dist_map[0] << std::endl;
+    for (int i = 0; i < n_levels; i++) {
+        std::cout << "Level " << i << " distance: " << level_dist_map[i][0]
+                  << std::endl;
+    }
+    std::cout << std::endl;
 }
 
 void IndexFlatPanorama::range_search(

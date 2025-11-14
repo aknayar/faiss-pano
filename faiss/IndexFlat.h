@@ -10,6 +10,7 @@
 #ifndef INDEX_FLAT_H
 #define INDEX_FLAT_H
 
+#include <map>
 #include <vector>
 
 #include <faiss/IndexFlatCodes.h>
@@ -105,6 +106,10 @@ struct IndexFlatPanorama : IndexFlat {
     const size_t n_levels;
     std::vector<float> cum_sums;
     Panorama pano;
+    std::vector<float> raw;
+
+    mutable std::map<idx_t, float> exact_dist_map;
+    mutable std::map<size_t, std::map<idx_t, float>> level_dist_map;
 
     /**
      * @param d dimensionality of the input vectors

@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <vector>
 
 namespace faiss {
@@ -102,7 +103,8 @@ struct Panorama {
             std::vector<uint32_t>& active_indices,
             std::vector<float>& exact_distances,
             float threshold,
-            PanoramaStats& local_stats) const;
+            PanoramaStats& local_stats,
+            std::map<size_t, std::map<idx_t, float>>* level_dist_map) const;
 
     void reconstruct(idx_t key, float* recons, const uint8_t* codes_base) const;
 };
@@ -121,7 +123,8 @@ size_t Panorama::progressive_filter_batch(
         std::vector<uint32_t>& active_indices,
         std::vector<float>& exact_distances,
         float threshold,
-        PanoramaStats& local_stats) const {
+        PanoramaStats& local_stats,
+        std::map<size_t, std::map<idx_t, float>>* level_dist_map) const {
     size_t batch_start = batch_no * batch_size;
     size_t curr_batch_size = std::min(list_size - batch_start, batch_size);
 
@@ -179,6 +182,15 @@ size_t Panorama::progressive_filter_batch(
             float cum_sum = level_cum_sums[idx];
             float cauchy_schwarz_bound = 2.0f * cum_sum * query_cum_norm;
             float lower_bound = exact_distances[idx] - cauchy_schwarz_bound;
+
+            if (level_dist_map != nullptr) {
+                (*level_dist_map)[level][idx + batch_start] = lower_bound;
+
+                if (idx == 0 && batch_start == 0) {
+                    printf("Level %d distance: %f, cauchy_schwarz_bound: %f, exact_distances: %f\n", level, lower_bound, cauchy_schwarz_bound, exact_distances[idx]);
+                    fflush(stdout);
+                }
+            }
 
             active_indices[next_active] = idx;
             next_active += C::cmp(threshold, lower_bound) ? 1 : 0;
