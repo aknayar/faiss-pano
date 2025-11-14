@@ -659,7 +659,14 @@ void IndexFlatPanorama::search(
 
     for (const auto& [level, dist_map] : level_dist_map) {
         for (const auto& [idx, dist] : dist_map) {
+            assert(dist != 0);
             ratio_map[level][idx] = dist / exact_dist_map[idx];
+        }
+    }
+
+    for (size_t i = 0; i < ntotal; i++) {
+        for (size_t level = 1; level < n_levels; level++) {
+            assert(level_dist_map[level][i] <= level_dist_map[level - 1][i]);
         }
     }
 
@@ -670,16 +677,19 @@ void IndexFlatPanorama::search(
     for (const auto& [level, dist_map] : ratio_map) {
         float avg = 0;
         float std = 0;
+        size_t count = 0;
         for (const auto& [idx, ratio] : dist_map) {
+            assert(ratio != 0);
             avg += ratio;
+            count++;
         }
-        avg /= dist_map.size();
+        avg /= count;
         avg_map[level] = avg;
 
         for (const auto& [idx, ratio] : dist_map) {
             std += (ratio - avg) * (ratio - avg);
         }
-        std /= dist_map.size();
+        std /= count;
         // right now it's variance
         std_map[level] = std;
     }

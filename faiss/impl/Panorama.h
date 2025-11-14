@@ -193,7 +193,8 @@ size_t Panorama::progressive_filter_batch(
             }
 
             active_indices[next_active] = idx;
-            next_active += C::cmp(threshold, lower_bound) ? 1 : 0;
+            // next_active += C::cmp(threshold, lower_bound) ? 1 : 0;
+            next_active += 1;
         }
 
         num_active = next_active;
