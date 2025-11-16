@@ -139,10 +139,12 @@ for k, dataset in enumerate(ALL_DATASETS):
     )
 
     if i == 1 and j == 1:
-        ax.set_xlabel("Level")
-    if j == 0:
-        ax.set_ylabel("LB/Exact Distance")
-    ax.set_title(DATASET_NAMES[dataset])
+        ax.set_xlabel("Level", fontweight='bold', fontsize=14)
+    if j == 0 and i == 0:
+        ax.set_ylabel('LB/Exact Distance', fontweight='bold', fontsize=14)
+        x, _ = ax.yaxis.get_label().get_position()
+        ax.yaxis.set_label_coords(x -.4, -.2)
+    ax.set_title(DATASET_NAMES[dataset], fontweight='bold', fontsize=16)
     ax.grid(True, linestyle='--', alpha=0.4)
     ax.set_xticks(np.arange(0, 16, 4))
 

@@ -636,24 +636,24 @@ void IndexFlatPanorama::search(
     FAISS_THROW_IF_NOT(k > 0);
     FAISS_THROW_IF_NOT(batch_size >= k);
 
-    // Just 1 query for this
-    FAISS_THROW_IF_NOT(n == 1);
+    // // Just 1 query for this
+    // FAISS_THROW_IF_NOT(n == 1);
 
     // Populate exact_dist_map
     for (idx_t i = 0; i < ntotal; i++) {
         exact_dist_map[i] = fvec_L2sqr(x, raw.data() + i * d, d);
     }
 
-    printf("step 1 done\n");
-    fflush(stdout);
+    // printf("step 1 done\n");
+    // fflush(stdout);
 
     HeapBlockResultHandler<CMax<float, int64_t>, false> handler(
             size_t(n), distances, labels, size_t(k), nullptr);
 
     flat_pano_search_core<false>(*this, handler, n, x, 0.0f, params);
 
-    printf("step 2 done\n");
-    fflush(stdout);
+    // printf("step 2 done\n");
+    // fflush(stdout);
 
     std::map<size_t, std::map<idx_t, float>> ratio_map;
 
@@ -670,8 +670,8 @@ void IndexFlatPanorama::search(
         }
     }
 
-    printf("step 3 done\n");
-    fflush(stdout);
+    // printf("step 3 done\n");
+    // fflush(stdout);
 
     std::map<size_t, float> avg_map, std_map;
     for (const auto& [level, dist_map] : ratio_map) {
@@ -694,19 +694,19 @@ void IndexFlatPanorama::search(
         std_map[level] = std;
     }
 
-    // Print the avg and std for each level
-    for (const auto& [level, avg] : avg_map) {
-        std::cout << "Level " << level << " avg: " << avg
-                  << " std: " << std_map[level] << std::endl;
-    }
+    // // Print the avg and std for each level
+    // for (const auto& [level, avg] : avg_map) {
+    //     std::cout << "Level " << level << " avg: " << avg
+    //               << " std: " << std_map[level] << std::endl;
+    // }
 
-    // for the first point, print its exact distnace and all the level distances
-    std::cout << "Exact distance: " << exact_dist_map[0] << std::endl;
-    for (int i = 0; i < n_levels; i++) {
-        std::cout << "Level " << i << " distance: " << level_dist_map[i][0]
-                  << std::endl;
-    }
-    std::cout << std::endl;
+    // // for the first point, print its exact distnace and all the level distances
+    // std::cout << "Exact distance: " << exact_dist_map[0] << std::endl;
+    // for (int i = 0; i < n_levels; i++) {
+    //     std::cout << "Level " << i << " distance: " << level_dist_map[i][0]
+    //               << std::endl;
+    // }
+    // std::cout << std::endl;
 }
 
 void IndexFlatPanorama::range_search(

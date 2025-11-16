@@ -185,16 +185,11 @@ size_t Panorama::progressive_filter_batch(
 
             if (level_dist_map != nullptr) {
                 (*level_dist_map)[level][idx + batch_start] = lower_bound;
-
-                if (idx == 0 && batch_start == 0) {
-                    printf("Level %d distance: %f, cauchy_schwarz_bound: %f, exact_distances: %f\n", level, lower_bound, cauchy_schwarz_bound, exact_distances[idx]);
-                    fflush(stdout);
-                }
             }
 
             active_indices[next_active] = idx;
-            // next_active += C::cmp(threshold, lower_bound) ? 1 : 0;
-            next_active += 1;
+            next_active += C::cmp(threshold, lower_bound) ? 1 : 0;
+            // next_active += 1;
         }
 
         num_active = next_active;
