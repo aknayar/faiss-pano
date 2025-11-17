@@ -126,6 +126,14 @@ for k, dataset in enumerate(ALL_DATASETS):
 
     avg = MEANS[dataset]
     std = VARS[dataset]
+
+    alpha = 0
+    for i in range(1, 10):
+        alpha += -np.log(1 - avg[i]) * 16 / i
+    alpha /= 9``
+
+    print(f"{dataset} alpha@8: {np.mean(alpha)}")
+    
     color = COLORS[dataset]
     ax.errorbar(
         levels,
