@@ -684,4 +684,124 @@ void IndexFlatPanorama::add_sa_codes(
 void IndexFlatPanorama::permute_entries(const idx_t* /* perm */) {
     FAISS_THROW_MSG("permute_entries not implemented for IndexFlatPanorama");
 }
+
+void IndexFlatPanorama::compute_distance_subset(
+        idx_t n,
+        const float* x,
+        idx_t k,
+        float* distances,
+        const idx_t* labels) const {
+    FAISS_THROW_IF_NOT(k > 0);
+    FAISS_THROW_IF_NOT(batch_size == 1);
+
+    printf("got here\n");
+
+    int nt = std::min(int(n), omp_get_max_threads());
+
+#pragma omp parallel num_threads(nt)
+    {
+        std::vector<float> heap_vals(k);
+        std::vector<idx_t> heap_ids(k); // dummy array, not used
+
+        std::vector<float> query_cum_norms(n_levels + 1);
+
+        // Panorama's optimized point-wise refinement (Algorithm 2):
+        // Batch-wise Panorama, as implemented in Panorama.h, incurs overhead
+        // from maintaining active_indices and exact_distances. This optimized
+        // implementation has minimal overhead and is thus preferred for
+        // IndexRefine's use case.
+        // 1. Initialize exact distance as ||y||^2 + ||x||^2.
+        // 2. For each level, refine distance incrementally:
+        //    - Compute dot product for current level: exact_dist -= 2*<x,y>.
+        //    - Use Cauchy-Schwarz bound on remaining levels to get lower bound.
+        //    - If there are less than k points in the heap, add the point to
+        //    the heap.
+        //    - Else, prune if lower bound exceeds k-th best distance.
+        // 3. After all levels, update heap if the point survived.
+#pragma omp for
+        for (idx_t i = 0; i < n; i++) {
+            printf("got here2\n");
+            const idx_t* __restrict idsi = labels + i * k;
+            const float* xi = x + i * d;
+            float* __restrict disj = distances + i * k;
+
+            PanoramaStats local_stats;
+            local_stats.reset();
+
+            pano.compute_query_cum_sums(xi, query_cum_norms.data());
+            float query_cum_norm = query_cum_norms[0] * query_cum_norms[0];
+
+            maxheap_heapify(k, heap_vals.data(), heap_ids.data());
+
+            size_t total_points = 0;
+            for (size_t j = 0; j < k; j++) {
+                idx_t idx = idsi[j];
+
+                if (idx < 0) {
+                    continue;
+                }
+
+                size_t cum_sum_offset = (n_levels + 1) * idx;
+                float cum_sum = cum_sums[cum_sum_offset];
+                float exact_distance = cum_sum * cum_sum + query_cum_norm;
+                cum_sum_offset++;
+
+                const float* x_ptr = xi;
+                const float* p_ptr =
+                        reinterpret_cast<const float*>(codes.data()) + d * idx;
+
+                local_stats.total_dims += d;
+
+                bool pruned = false;
+                for (size_t level = 0; level < n_levels; level++) {
+                    local_stats.total_dims_scanned += pano.level_width_floats;
+
+                    // Refine distance
+                    size_t actual_level_width = std::min(
+                            pano.level_width_floats,
+                            d - level * pano.level_width_floats);
+                    float dot_product = fvec_inner_product(
+                            x_ptr, p_ptr, actual_level_width);
+                    exact_distance -= 2 * dot_product;
+
+                    float cum_sum = cum_sums[cum_sum_offset];
+                    float cauchy_schwarz_bound =
+                            2.0f * cum_sum * query_cum_norms[level + 1];
+                    float lower_bound = exact_distance - cauchy_schwarz_bound;
+
+                    // Prune using Cauchy-Schwarz bound
+                    // heap_vals[0] contains k-th smallest distance (largest in
+                    // the heap)
+                    if (lower_bound > heap_vals[0]) {
+                        pruned = true;
+                        break;
+                    }
+
+                    cum_sum_offset++;
+                    x_ptr += pano.level_width_floats;
+                    p_ptr += pano.level_width_floats;
+                }
+
+                disj[j] = exact_distance;
+
+                if (!pruned) {
+                    if (exact_distance < heap_vals[0] || total_points < k) {
+                        maxheap_replace_top(
+                                k,
+                                heap_vals.data(),
+                                heap_ids.data(),
+                                exact_distance,
+                                j);
+                    }
+                }
+
+                printf("heap_vals[0] = %.6f\n", heap_vals[0]);
+
+                total_points++;
+            }
+
+            indexPanorama_stats.add(local_stats);
+        }
+    }
+}
 } // namespace faiss

@@ -95,4 +95,13 @@ struct IndexRefineFlat : IndexRefine {
             const SearchParameters* params = nullptr) const override;
 };
 
+/** Version where the refinement index is an IndexFlatPanorama. It has one
+ * additional constructor that takes a table of elements to add to the flat
+ * refinement index */
+
+struct IndexRefineFlatPanorama : IndexRefineFlat {
+    explicit IndexRefineFlatPanorama(Index* base_index, size_t n_levels, size_t batch_size);
+    IndexRefineFlatPanorama(Index* base_index, const float* xb, size_t n_levels, size_t batch_size);
+};
+
 } // namespace faiss

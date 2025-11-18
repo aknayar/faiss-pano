@@ -341,4 +341,31 @@ void IndexRefineFlat::search(
     }
 }
 
+/***************************************************
+ * IndexRefineFlatPanorama
+ ***************************************************/
+
+IndexRefineFlatPanorama::IndexRefineFlatPanorama(Index* base_index, size_t n_levels, size_t batch_size) {
+    IndexRefine::IndexRefine(
+            base_index,
+            new IndexFlatPanorama(base_index->d, base_index->metric_type, n_levels, batch_size));
+    is_trained = base_index->is_trained;
+    own_refine_index = true;
+    FAISS_THROW_IF_NOT_MSG(
+            base_index->ntotal == 0,
+            "base_index should be empty in the beginning");
+}
+
+IndexRefineFlatPanorama::IndexRefineFlatPanorama(
+        Index* base_index,
+        const float* xb,
+        size_t n_levels,
+        size_t batch_size) {
+    IndexRefine(base_index, nullptr);
+    is_trained = base_index->is_trained;
+    refine_index = new IndexFlatPanorama(base_index->d, base_index->metric_type, n_levels, batch_size);
+    own_refine_index = true;
+    refine_index->add(base_index->ntotal, xb);
+}
+
 } // namespace faiss

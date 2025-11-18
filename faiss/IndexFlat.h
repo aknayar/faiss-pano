@@ -141,6 +141,13 @@ struct IndexFlatPanorama : IndexFlat {
             RangeSearchResult* result,
             const SearchParameters* params = nullptr) const override;
 
+    void compute_distance_subset(
+            idx_t n,
+            const float* x,
+            idx_t k,
+            float* distances,
+            const idx_t* labels) const;
+
     void reset() override;
 
     void reconstruct(idx_t key, float* recons) const override;
